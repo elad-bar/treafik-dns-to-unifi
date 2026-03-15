@@ -5,10 +5,14 @@
  * Subclasses implement read/write or query methods that perform single operations.
  */
 class BaseRepository {
-  constructor() {
+  /**
+   * @param {import("../services/logger")} logger - Logger.
+   */
+  constructor(logger) {
     if (this.constructor === BaseRepository) {
       throw new TypeError("BaseRepository is abstract");
     }
+    this.logger = logger;
   }
 }
 

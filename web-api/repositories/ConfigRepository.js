@@ -10,12 +10,11 @@ const { BaseRepository } = require("./BaseRepository");
  */
 class ConfigRepository extends BaseRepository {
   /**
-   * @param {string} [configPath] - Full path to config JSON file. Defaults to web-api/config/config.json.
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(configPath) {
-    super();
-    this.configPath =
-      configPath || path.join(__dirname, "..", "config", "config.json");
+  constructor(logger) {
+    super(logger);
+    this.configPath = path.join(__dirname, "..", "config", "config.json");
   }
 
   /**
@@ -24,6 +23,7 @@ class ConfigRepository extends BaseRepository {
    */
   read() {
     if (!fs.existsSync(this.configPath)) {
+      this.logger.debug("Config file missing", { path: this.configPath });
       return {};
     }
     const raw = fs.readFileSync(this.configPath, "utf8");
@@ -31,6 +31,10 @@ class ConfigRepository extends BaseRepository {
       const data = JSON.parse(raw);
       return data && data.constructor === Object ? data : {};
     } catch (err) {
+      this.logger.error("Config file invalid", {
+        path: this.configPath,
+        error: err.message,
+      });
       throw new Error(`Invalid config file: ${err.message || err}`);
     }
   }
@@ -48,6 +52,7 @@ class ConfigRepository extends BaseRepository {
       JSON.stringify(data, null, 2),
       "utf8"
     );
+    this.logger.debug("Config written", { path: this.configPath });
   }
 }
 

@@ -9,12 +9,14 @@ const { SyncManager } = require("../managers/SyncManager");
 class DiscoveredRoutes {
   /**
    * @param {SyncManager} syncManager - Sync manager (getList + sync).
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(syncManager) {
+  constructor(syncManager, logger) {
     if (!(syncManager instanceof SyncManager)) {
       throw new TypeError("DiscoveredRoutes requires a SyncManager instance");
     }
     this.syncManager = syncManager;
+    this.logger = logger;
     this.router = express.Router();
     this.registerRoutes();
   }
@@ -22,6 +24,9 @@ class DiscoveredRoutes {
   registerRoutes() {
     this.router.get("/", (req, res) => {
       this.asyncHandler(this.getIndex.bind(this))(req, res);
+    });
+    this.router.post("/sync", (req, res) => {
+      this.asyncHandler(this.postSync.bind(this))(req, res);
     });
   }
 
@@ -33,6 +38,11 @@ class DiscoveredRoutes {
   sendError(res, err) {
     const statusCode = err.statusCode || 500;
     const message = err.message || String(err);
+    if (statusCode >= 500) {
+      this.logger.error("Route error", { statusCode, message });
+    } else {
+      this.logger.warn("Route error", { statusCode, message });
+    }
     res.status(statusCode).json({ error: message });
   }
 
@@ -55,6 +65,14 @@ class DiscoveredRoutes {
   async getIndex(req, res) {
     const list = await this.syncManager.getList();
     res.json(list);
+  }
+
+  /**
+   * POST /sync — run Traefik→UDM sync (on demand, regardless of interval).
+   */
+  async postSync(req, res) {
+    await this.syncManager.syncWithRetry();
+    res.status(200).json({ ok: true });
   }
 
   /**

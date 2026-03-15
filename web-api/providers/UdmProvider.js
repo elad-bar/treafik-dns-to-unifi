@@ -11,9 +11,10 @@ const DNS_RECORDS_PATH = "/proxy/network/v2/api/site/default/static-dns";
 class UdmProvider extends BaseProvider {
   /**
    * @param {object} config - Config with udmUrl, udmApiKey, insecureTls.
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(config) {
-    super(config);
+  constructor(config, logger) {
+    super(config, logger);
     this.baseUrl = (config?.udmUrl || "").replace(/\/$/, "");
     this.apiKey = config?.udmApiKey;
     this.ready = Boolean(this.baseUrl && this.apiKey);

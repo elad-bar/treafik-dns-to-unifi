@@ -9,16 +9,18 @@ const { ConfigManager } = require("../managers/ConfigManager");
 class ConfigRoutes {
   /**
    * @param {ConfigManager} configManager - Config manager.
-   * @param {import("../providers/TraefikProvider")} [traefikProvider] - Traefik provider instance (optional, for refresh after save).
-   * @param {import("../providers/UdmProvider")} [udmProvider] - UDM provider instance (optional, for refresh after save).
+   * @param {import("../providers/TraefikProvider")} traefikProvider - Traefik provider instance (for refresh after save).
+   * @param {import("../providers/UdmProvider")} udmProvider - UDM provider instance (for refresh after save).
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(configManager, traefikProvider, udmProvider) {
+  constructor(configManager, traefikProvider, udmProvider, logger) {
     if (!(configManager instanceof ConfigManager)) {
       throw new TypeError("ConfigRoutes requires a ConfigManager instance");
     }
     this.configManager = configManager;
-    this._traefikProvider = traefikProvider ?? null;
-    this._udmProvider = udmProvider ?? null;
+    this._traefikProvider = traefikProvider;
+    this._udmProvider = udmProvider;
+    this.logger = logger;
     this.router = express.Router();
     this.registerRoutes();
   }
@@ -28,12 +30,8 @@ class ConfigRoutes {
    */
   _refreshProviders() {
     const cfg = this.configManager.getCurrentConfig();
-    if (this._traefikProvider) {
-      this._traefikProvider.updateConfig(cfg);
-    }
-    if (this._udmProvider) {
-      this._udmProvider.updateConfig(cfg);
-    }
+    this._traefikProvider.updateConfig(cfg);
+    this._udmProvider.updateConfig(cfg);
   }
 
   registerRoutes() {
@@ -62,6 +60,11 @@ class ConfigRoutes {
   sendError(res, err) {
     const statusCode = err.statusCode || 500;
     const message = err.message || String(err);
+    if (statusCode >= 500) {
+      this.logger.error("Route error", { statusCode, message });
+    } else {
+      this.logger.warn("Route error", { statusCode, message });
+    }
     res.status(statusCode).json({ error: message });
   }
 
@@ -79,11 +82,17 @@ class ConfigRoutes {
   }
 
   /**
-   * GET / — return public config.
+   * GET / — return public config and provider readiness.
    */
   getIndex(req, res) {
     try {
-      res.json(this.configManager.getPublic());
+      const publicConfig = this.configManager.getPublic();
+      const body = {
+        ...publicConfig,
+        traefikReady: this._traefikProvider ? this._traefikProvider.ready : false,
+        udmReady: this._udmProvider ? this._udmProvider.ready : false,
+      };
+      res.json(body);
     } catch (err) {
       this.sendError(res, err);
     }

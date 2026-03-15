@@ -1,11 +1,23 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getDiscovered } from "../../api/client";
+import { getDiscovered, syncDiscovered as syncDiscoveredApi } from "../../api/client";
 
 export const fetchDiscovered = createAsyncThunk(
   "discovered/fetch",
   async (_, { rejectWithValue }) => {
     try {
       return await getDiscovered();
+    } catch (e) {
+      return rejectWithValue(e.message);
+    }
+  }
+);
+
+export const syncDiscovered = createAsyncThunk(
+  "discovered/sync",
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      await syncDiscoveredApi();
+      await dispatch(fetchDiscovered());
     } catch (e) {
       return rejectWithValue(e.message);
     }

@@ -23,7 +23,7 @@ class App {
     this.express = express();
 
     this._logger = logger;
-    this._configRepository = new ConfigRepository();
+    this._configRepository = new ConfigRepository(this._logger);
     this._configManager = new ConfigManager(
       this._configRepository,
       this._logger,
@@ -37,8 +37,8 @@ class App {
       uiDistPath: path.join(__dirname, "..", "web-ui", "dist"),
       isProduction: process.env.NODE_ENV === "production",
     };
-    this._traefikProvider = new TraefikProvider(cfg);
-    this._udmProvider = new UdmProvider(cfg);
+    this._traefikProvider = new TraefikProvider(cfg, this._logger);
+    this._udmProvider = new UdmProvider(cfg, this._logger);
     this._syncManager = new SyncManager(
       this._configManager,
       this._traefikProvider,
@@ -50,9 +50,10 @@ class App {
     this._configRoutes = new ConfigRoutes(
       this._configManager,
       this._traefikProvider,
-      this._udmProvider
+      this._udmProvider,
+      this._logger
     );
-    this._discoveredRoutes = new DiscoveredRoutes(this._syncManager);
+    this._discoveredRoutes = new DiscoveredRoutes(this._syncManager, this._logger);
 
     this._setupMiddleware();
     this._mountRoutes();
@@ -101,7 +102,7 @@ class App {
     try {
       this._configManager.getConfig({ exitOnError: false });
     } catch (err) {
-      // No config file yet; will be created on first PUT
+      this._logger.warn("No config file yet", { err: err.message });
     }
   }
 
@@ -132,8 +133,10 @@ class App {
     } catch (_) {
       // use default
     }
+    this._logger.info("Sync interval: %d ms", intervalMs);
     const runSync = () => {
       if (!this._traefikProvider.ready || !this._udmProvider.ready) {
+        this._logger.debug("Sync skipped: Traefik or UDM not ready");
         return;
       }
       this._syncManager.syncWithRetry().catch((err) => {

@@ -22,9 +22,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import RestoreIcon from "@mui/icons-material/Restore";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SyncIcon from "@mui/icons-material/Sync";
 import { setSectionError } from "../store/slices/uiSlice";
 import { putOverridesConfig } from "../store/slices/configSlice";
-import { fetchDiscovered } from "../store/slices/discoveredSlice";
+import { fetchDiscovered, syncDiscovered } from "../store/slices/discoveredSlice";
 
 function UdmIndicator({ registeredInUdm }) {
   const color =
@@ -63,6 +65,8 @@ export default function DiscoveredRouters() {
   const currentOverrides = config?.dnsOverrides || {};
   const targetIp = config?.targetIp || "";
   const isEditMode = editingHostname !== null;
+  const traefikReady = config?.traefikReady === true;
+  const udmReady = config?.udmReady === true;
 
   useEffect(() => {
     if (!editingHostname && targetIp && editorIp === "") {
@@ -131,6 +135,9 @@ export default function DiscoveredRouters() {
     }
   };
 
+  const handleRefresh = () => dispatch(fetchDiscovered());
+  const handleSync = () => dispatch(syncDiscovered());
+
   return (
     <Box
       sx={{
@@ -143,7 +150,31 @@ export default function DiscoveredRouters() {
     >
       <Box sx={{ flex: "2 1 0", minWidth: 280, display: "flex" }}>
         <Card sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <CardHeader title="Discovered routers" />
+          <CardHeader
+            title="Discovered routers"
+            action={
+              <Box sx={{ display: "flex", gap: 0 }}>
+                <Tooltip title="Refetch list">
+                  <IconButton
+                    onClick={handleRefresh}
+                    disabled={!traefikReady}
+                    aria-label="Refetch discovered routers"
+                  >
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Sync Traefik to UDM">
+                  <IconButton
+                    onClick={handleSync}
+                    disabled={!traefikReady || !udmReady}
+                    aria-label="Sync to UDM"
+                  >
+                    <SyncIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            }
+          />
           <CardContent sx={{ flex: 1 }}>
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">

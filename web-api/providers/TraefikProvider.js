@@ -11,9 +11,10 @@ const HOST_REGEX = /Host\(`([^`]+)`\)/g;
 class TraefikProvider extends BaseProvider {
   /**
    * @param {object} config - Config object with traefikApiUrl, insecureTls.
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(config) {
-    super(config);
+  constructor(config, logger) {
+    super(config, logger);
     this.apiUrl = config?.traefikApiUrl;
     this.ready = Boolean(this.apiUrl);
   }

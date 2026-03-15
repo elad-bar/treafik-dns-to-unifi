@@ -28,9 +28,9 @@ const DEFAULT_CONFIG = {
 class ConfigManager extends BaseManager {
   /**
    * @param {import("../repositories/ConfigRepository")} configRepository - Config repository.
-   * @param {import("../services/logger")} [logger] - Optional logger.
-   * @param {typeof import("../providers/TraefikProvider")} [TraefikProvider] - Traefik provider class (for validation).
-   * @param {typeof import("../providers/UdmProvider")} [UdmProvider] - UDM provider class (for validation).
+   * @param {import("../services/logger")} logger - Logger (required).
+   * @param {typeof import("../providers/TraefikProvider")} TraefikProvider - Traefik provider class (for validation).
+   * @param {typeof import("../providers/UdmProvider")} UdmProvider - UDM provider class (for validation).
    */
   constructor(configRepository, logger, TraefikProvider, UdmProvider) {
     super(logger);
@@ -116,6 +116,7 @@ class ConfigManager extends BaseManager {
     if (this.logger.level !== this._state.logLevel) {
       this.logger.level = this._state.logLevel;
     }
+    this.logger.debug("Config loaded", { path: this.repository.configPath });
     return this;
   }
 
@@ -189,6 +190,7 @@ class ConfigManager extends BaseManager {
       port: dto.port != null ? Number(dto.port) || DEFAULT_PORT : this._state.port,
     };
     this.repository.write(normalized);
+    this.logger.info("Config saved");
     this._state = {
       ...this._state,
       ...normalized,
@@ -270,27 +272,35 @@ class ConfigManager extends BaseManager {
   }
 
   async validateTraefik(traefikBaseUrl, insecureTls) {
-    if (!this.TraefikProvider) return { ok: false, error: "Traefik provider not configured" };
     try {
       const config = this._buildTraefikConfig(traefikBaseUrl, insecureTls);
-      const provider = new this.TraefikProvider(config);
+      const provider = new this.TraefikProvider(config, this.logger);
       if (!provider.ready) return { ok: false, error: "Traefik is not configured. Set traefikBaseUrl in config." };
       await provider.getHosts();
+      this.logger.info("Traefik validation OK", { url: traefikBaseUrl });
       return { ok: true };
     } catch (err) {
+      this.logger.warn("Traefik validation failed", {
+        url: traefikBaseUrl,
+        error: err.message,
+      });
       return { ok: false, error: err.message || String(err) };
     }
   }
 
   async validateUnifi(udmUrl, udmApiKey, insecureTls) {
-    if (!this.UdmProvider) return { ok: false, error: "UDM provider not configured" };
     try {
       const config = this._buildUdmConfig(udmUrl, udmApiKey, insecureTls);
-      const provider = new this.UdmProvider(config);
+      const provider = new this.UdmProvider(config, this.logger);
       if (!provider.ready) return { ok: false, error: "UniFi is not configured. Set udmUrl and udmApiKey in config." };
       await provider.listDnsRecords();
+      this.logger.info("UniFi validation OK", { udmUrl });
       return { ok: true };
     } catch (err) {
+      this.logger.warn("UniFi validation failed", {
+        udmUrl,
+        error: err.message,
+      });
       return { ok: false, error: err.message || String(err) };
     }
   }

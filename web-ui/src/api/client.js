@@ -40,3 +40,12 @@ export async function getDiscovered() {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export async function syncDiscovered() {
+  const res = await fetch(`${API_BASE}/api/discovered/sync`, { method: "POST" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || res.statusText);
+  }
+  return res.json();
+}

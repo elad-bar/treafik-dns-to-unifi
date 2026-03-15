@@ -6,10 +6,10 @@
  */
 class BaseManager {
   /**
-   * @param {import("../services/logger")} [logger] - Optional logger instance.
+   * @param {import("../services/logger")} logger - Logger instance (required).
    */
   constructor(logger) {
-    this.logger = logger || null;
+    this.logger = logger;
   }
 }
 

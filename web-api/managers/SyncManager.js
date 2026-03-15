@@ -33,6 +33,7 @@ class SyncManager extends BaseManager {
     try {
       this._configManager.getConfig({ exitOnError: false });
     } catch (e) {
+      this.logger.debug("getList: no config, returning empty list");
       return [];
     }
     const config = this._configManager.getCurrentConfig();
@@ -68,6 +69,7 @@ class SyncManager extends BaseManager {
       });
     }
     list.sort((a, b) => a.hostname.localeCompare(b.hostname));
+    this.logger.debug("getList: %d entries", list.length);
     return list;
   }
 
@@ -100,11 +102,9 @@ class SyncManager extends BaseManager {
       hostsFromTraefik = hostsFromTraefik.filter((h) =>
         this._isInManagedDomain(h, config.managedDomain)
       );
-      if (this.logger) {
-        this.logger.info(
-          `Managed domain: ${config.managedDomain} (only syncing and cleaning this domain and subdomains).`
-        );
-      }
+      this.logger.info(
+        `Managed domain: ${config.managedDomain} (only syncing and cleaning this domain and subdomains).`
+      );
     }
 
     const desired = new Map();
@@ -132,25 +132,19 @@ class SyncManager extends BaseManager {
     let created = 0;
     for (const entry of toCreate) {
       if (config.dryRun) {
-        if (this.logger) {
-          this.logger.info(
-            `Would create DNS: ${entry.hostname} -> ${entry.ip}`
-          );
-        }
+        this.logger.info(
+          `Would create DNS: ${entry.hostname} -> ${entry.ip}`
+        );
         created++;
       } else {
         try {
           await this._udmProvider.createDnsRecord(entry.hostname, entry.ip);
           created++;
-          if (this.logger) {
-            this.logger.info(`Created DNS: ${entry.hostname} -> ${entry.ip}`);
-          }
+          this.logger.info(`Created DNS: ${entry.hostname} -> ${entry.ip}`);
         } catch (e) {
-          if (this.logger) {
-            this.logger.error(
-              `DNS create failed: ${entry.hostname} — ${formatErr(e)}`
-            );
-          }
+          this.logger.error(
+            `DNS create failed: ${entry.hostname} — ${formatErr(e)}`
+          );
         }
       }
     }
@@ -164,19 +158,17 @@ class SyncManager extends BaseManager {
       );
       for (const record of toDelete) {
         if (config.dryRun) {
-          if (this.logger) this.logger.info(`Would delete DNS: ${record.name}`);
+          this.logger.info(`Would delete DNS: ${record.name}`);
           deleted++;
         } else {
           try {
             await this._udmProvider.deleteDnsRecord(record.id);
             deleted++;
-            if (this.logger) this.logger.info(`Deleted DNS: ${record.name}`);
+            this.logger.info(`Deleted DNS: ${record.name}`);
           } catch (e) {
-            if (this.logger) {
-              this.logger.error(
-                `DNS delete failed: ${record.name} — ${formatErr(e)}`
-              );
-            }
+            this.logger.error(
+              `DNS delete failed: ${record.name} — ${formatErr(e)}`
+            );
           }
         }
       }
@@ -190,7 +182,7 @@ class SyncManager extends BaseManager {
       const actionDelete = config.dryRun ? "would delete" : "deleted";
       msg += ` Cleanup: ${deleted} ${actionDelete}.`;
     }
-    if (this.logger) this.logger.info(msg);
+    this.logger.info(msg);
   }
 
   /**
@@ -208,17 +200,13 @@ class SyncManager extends BaseManager {
         if (err instanceof ValidationError) {
           throw err;
         }
-        if (this.logger) {
-          this.logger.warn(
-            `Sync attempt ${attempt}/${SYNC_MAX_RETRIES} failed: ${formatErr(err)}`
-          );
-        }
+        this.logger.warn(
+          `Sync attempt ${attempt}/${SYNC_MAX_RETRIES} failed: ${formatErr(err)}`
+        );
         if (attempt < SYNC_MAX_RETRIES) {
-          if (this.logger) {
-            this.logger.info(
-              `Retrying in ${SYNC_RETRY_DELAY_MS / 1000}s...`
-            );
-          }
+          this.logger.info(
+            `Retrying in ${SYNC_RETRY_DELAY_MS / 1000}s...`
+          );
           await new Promise((r) => setTimeout(r, SYNC_RETRY_DELAY_MS));
         }
       }

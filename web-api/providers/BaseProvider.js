@@ -13,13 +13,15 @@ const DEFAULT_TIMEOUT_MS = 15000;
  */
 class BaseProvider {
   /**
-   * @param {object} [config] - Config with timeout, insecureTls.
+   * @param {object} config - Config with timeout, insecureTls.
+   * @param {import("../services/logger")} logger - Logger.
    */
-  constructor(config) {
+  constructor(config, logger) {
     if (this.constructor === BaseProvider) {
       throw new TypeError("BaseProvider is abstract");
     }
-    this.config = config || {};
+    this.logger = logger;
+    this.config = config;
     this.timeout = this.config.timeout ?? DEFAULT_TIMEOUT_MS;
     const insecureTls = this.config.insecureTls === true;
     this.httpsAgent = insecureTls
@@ -29,10 +31,10 @@ class BaseProvider {
 
   /**
    * Update shared state from new config. Subclasses override to also update URL/key and ready.
-   * @param {object} [config] - New config.
+   * @param {object} config - New config.
    */
   updateConfig(config) {
-    this.config = config || {};
+    this.config = config;
     this.timeout = this.config.timeout ?? DEFAULT_TIMEOUT_MS;
     const insecureTls = this.config.insecureTls === true;
     this.httpsAgent = insecureTls
@@ -44,6 +46,8 @@ class BaseProvider {
    * @private
    */
   _request(method, url, options = {}) {
+    const start = Date.now();
+    this.logger.debug("HTTP request", { method, url });
     const opts = {
       method,
       url,
@@ -51,7 +55,27 @@ class BaseProvider {
       ...(this.httpsAgent && { httpsAgent: this.httpsAgent }),
       ...options,
     };
-    return axios.request(opts);
+    return axios
+      .request(opts)
+      .then((res) => {
+        const durationMs = Date.now() - start;
+        this.logger.debug("HTTP response", {
+          method,
+          url,
+          status: res.status,
+          durationMs,
+        });
+        return res;
+      })
+      .catch((err) => {
+        this.logger.error("HTTP request failed", {
+          method,
+          url,
+          error: err.message,
+          status: err.response?.status,
+        });
+        throw err;
+      });
   }
 
   /**
