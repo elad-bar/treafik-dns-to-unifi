@@ -125,10 +125,14 @@ class SyncManager extends BaseManager {
 
   async _performUpdate(record, entry) {
     try {
-      await this._udmProvider.updateDnsRecord(record.id, {
+      // UDM API expects the full record body; send existing record with our changes.
+      const body = {
+        ...record.raw,
+        key: entry.hostname,
         enabled: true,
         value: entry.ip,
-      });
+      };
+      await this._udmProvider.updateDnsRecord(record.id, body);
       this.logger.info(`Updated DNS: ${record.name} -> ${entry.ip}`);
       return 1;
     } catch (e) {
@@ -246,6 +250,67 @@ class SyncManager extends BaseManager {
       msg += ` Cleanup: ${deleted} ${labels.delete}.`;
     }
     this.logger.info(msg);
+  }
+
+  /**
+   * Sync a single hostname: create or update its UDM DNS record to match desired state.
+   * @param {string} hostname - Hostname to sync (e.g. "zigbee.baru.sh").
+   * @returns {Promise<{ action: 'created'|'updated'|'unchanged' }>}
+   */
+  async syncOne(hostname) {
+    this._configManager.getConfig({ exitOnError: false });
+    const config = this._configManager.getCurrentConfig();
+    if (!this._traefikProvider.ready) {
+      throw new ValidationError("Traefik is not configured. Set traefikBaseUrl in config.");
+    }
+    if (!this._udmProvider.ready) {
+      throw new ValidationError("UniFi is not configured. Set udmUrl and udmApiKey in config.");
+    }
+
+    let hostsFromTraefik = await this._traefikProvider.getHosts();
+    if (config.managedDomain) {
+      hostsFromTraefik = hostsFromTraefik.filter((h) =>
+        this._isInManagedDomain(h, config.managedDomain)
+      );
+    }
+    const desired = new Map();
+    for (const host of hostsFromTraefik) {
+      desired.set(host.toLowerCase(), { hostname: host, ip: config.targetIp });
+    }
+    const overrides = config.dnsOverrides || {};
+    for (const key of Object.keys(overrides)) {
+      const h = key.trim();
+      desired.set(h.toLowerCase(), { hostname: h, ip: overrides[key] });
+    }
+
+    const hostnameLower = String(hostname || "").trim().toLowerCase();
+    if (!hostnameLower) {
+      throw new ValidationError("Hostname is required.");
+    }
+    const entry = desired.get(hostnameLower);
+    if (!entry) {
+      throw new ValidationError(`Hostname "${hostname}" is not in the desired set (Traefik hosts or overrides).`);
+    }
+
+    const existingRecords = await this._udmProvider.listDnsRecords();
+    const existingByLower = new Map(
+      existingRecords.map((r) => [r.name.toLowerCase(), r])
+    );
+    const record = existingByLower.get(hostnameLower);
+    const mode = this._modes.execute;
+
+    if (!record) {
+      await mode.create(entry);
+      this.logger.info(`Sync one: created DNS: ${entry.hostname} -> ${entry.ip}`);
+      return { action: "created" };
+    }
+    if (record.enabled === false || record.value !== entry.ip) {
+      await mode.update(record, entry);
+      this.logger.info(`Sync one: updated DNS: ${record.name} -> ${entry.ip}`);
+      return { action: "updated" };
+    }
+    this.logger.debug(`Sync one: ${entry.hostname} already in sync`);
+    return { action: "unchanged" };
   }
 
   /**

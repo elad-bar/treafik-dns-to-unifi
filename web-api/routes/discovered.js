@@ -29,6 +29,9 @@ class DiscoveredRoutes {
     this.router.post("/sync", (req, res) => {
       this.asyncHandler(this.postSync.bind(this))(req, res);
     });
+    this.router.post("/sync/one", (req, res) => {
+      this.asyncHandler(this.postSyncOne.bind(this))(req, res);
+    });
   }
 
   /**
@@ -74,6 +77,15 @@ class DiscoveredRoutes {
   async postSync(req, res) {
     await this.syncManager.syncWithRetry({ forceApply: true });
     res.status(200).json({ ok: true });
+  }
+
+  /**
+   * POST /sync/one — sync a single hostname (create or update its UDM DNS record). Body: { hostname }.
+   */
+  async postSyncOne(req, res) {
+    const hostname = req.body?.hostname;
+    const result = await this.syncManager.syncOne(hostname);
+    res.status(200).json({ ok: true, action: result.action });
   }
 
   /**

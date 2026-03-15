@@ -76,7 +76,8 @@ class UdmProvider extends BaseProvider {
           const enabled = r.enabled !== false;
           const value = r.value != null ? String(r.value).trim() : "";
           if (!name || !id) return null;
-          return { id: String(id), name, enabled, value };
+          // Preserve full record so update can send whole payload (UDM API expects it).
+          return { id: String(id), name, enabled, value, raw: { ...r } };
         })
         .filter(Boolean);
     } catch (err) {
