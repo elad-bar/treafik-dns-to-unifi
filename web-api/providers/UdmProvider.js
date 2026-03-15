@@ -73,8 +73,10 @@ class UdmProvider extends BaseProvider {
         .map((r) => {
           const name = r.key != null ? String(r.key).toLowerCase() : "";
           const id = r._id || r.id;
+          const enabled = r.enabled !== false;
+          const value = r.value != null ? String(r.value).trim() : "";
           if (!name || !id) return null;
-          return { id: String(id), name };
+          return { id: String(id), name, enabled, value };
         })
         .filter(Boolean);
     } catch (err) {
@@ -99,11 +101,30 @@ class UdmProvider extends BaseProvider {
     try {
       await this._post(
         `${this.baseUrl}${DNS_RECORDS_PATH}`,
-        { key: hostname, record_type: "A", value: ip },
+        { key: hostname, record_type: "A", value: ip, enabled: true },
         this._getUdmOptions()
       );
     } catch (err) {
       throw this._wrapError(err, "create DNS");
+    }
+  }
+
+  /**
+   * Update an existing DNS record (e.g. set enabled: true).
+   * @param {string} id - Record id (_id from list).
+   * @param {object} body - Fields to update (e.g. { enabled: true }).
+   */
+  async updateDnsRecord(id, body) {
+    try {
+      await this._put(
+        `${this.baseUrl}${DNS_RECORDS_PATH}/${id}`,
+        body,
+        this._getUdmOptions({
+          validateStatus: (status) => status >= 200 && status < 300,
+        })
+      );
+    } catch (err) {
+      throw this._wrapError(err, "update DNS");
     }
   }
 }

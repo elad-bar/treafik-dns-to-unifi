@@ -122,12 +122,44 @@ class SyncManager extends BaseManager {
     }
 
     const existingRecords = await this._udmProvider.listDnsRecords();
-    const existingSet = new Set(existingRecords.map((r) => r.name));
+    const existingByLower = new Map(
+      existingRecords.map((r) => [r.name.toLowerCase(), r])
+    );
+    const existingSet = new Set(existingByLower.keys());
 
     const desiredSet = new Set(desired.keys());
     const toCreate = [...desired.values()].filter(
       (entry) => !existingSet.has(entry.hostname.toLowerCase())
     );
+
+    let updated = 0;
+    for (const hostnameLower of desiredSet) {
+      const record = existingByLower.get(hostnameLower);
+      const entry = desired.get(hostnameLower);
+      if (!record || !entry) continue;
+      const needsUpdate =
+        record.enabled === false || record.value !== entry.ip;
+      if (!needsUpdate) continue;
+      if (config.dryRun) {
+        this.logger.info(
+          `Would update DNS: ${record.name} -> ${entry.ip}${record.enabled === false ? " (enable)" : ""}`
+        );
+        updated++;
+      } else {
+        try {
+          await this._udmProvider.updateDnsRecord(record.id, {
+            enabled: true,
+            value: entry.ip,
+          });
+          updated++;
+          this.logger.info(`Updated DNS: ${record.name} -> ${entry.ip}`);
+        } catch (e) {
+          this.logger.error(
+            `DNS update failed: ${record.name} — ${formatErr(e)}`
+          );
+        }
+      }
+    }
 
     let created = 0;
     for (const entry of toCreate) {
@@ -176,8 +208,9 @@ class SyncManager extends BaseManager {
 
     const already = desired.size - toCreate.length;
     const actionCreate = config.dryRun ? "would create" : "created";
+    const actionUpdate = config.dryRun ? "would update" : "updated";
     const overrideCount = Object.keys(overrides).length;
-    let msg = `Sync done: ${hostsFromTraefik.length} from Traefik${overrideCount ? `, ${overrideCount} overrides` : ""}, ${desired.size} desired, ${already} already in UDM, ${created} ${actionCreate}.`;
+    let msg = `Sync done: ${hostsFromTraefik.length} from Traefik${overrideCount ? `, ${overrideCount} overrides` : ""}, ${desired.size} desired, ${already} already in UDM, ${created} ${actionCreate}, ${updated} ${actionUpdate}.`;
     if (config.managedDomain !== undefined) {
       const actionDelete = config.dryRun ? "would delete" : "deleted";
       msg += ` Cleanup: ${deleted} ${actionDelete}.`;

@@ -95,6 +95,13 @@ class BaseProvider {
   /**
    * @private
    */
+  _put(url, body, options = {}) {
+    return this._request("put", url, { ...options, data: body });
+  }
+
+  /**
+   * @private
+   */
   _delete(url, options = {}) {
     return this._request("delete", url, options);
   }
