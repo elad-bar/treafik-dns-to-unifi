@@ -1,0 +1,10 @@
+services:
+  traefik-dns-unifi:
+    image: ghcr.io/elad-bar/treafik-dns-to-unifi:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config:/app/web-api/config
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

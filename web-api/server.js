@@ -15,7 +15,7 @@ const { ConfigRoutes } = require("./routes/config");
 const { DiscoveredRoutes } = require("./routes/discovered");
 
 /**
- * Application bootstrap. Server settings (port, uiDistPath) come from app config (ConfigManager).
+ * Application bootstrap. Port comes from config; UI dist path is derived from app location.
  */
 class App {
   constructor() {
@@ -34,7 +34,7 @@ class App {
     const cfg = this._configManager.getCurrentConfig();
     this._config = {
       port: cfg.port ?? 3000,
-      uiDistPath: cfg.uiDistPath ?? path.join(__dirname, "..", "web-ui", "dist"),
+      uiDistPath: path.join(__dirname, "..", "web-ui", "dist"),
       isProduction: process.env.NODE_ENV === "production",
     };
     this._traefikProvider = new TraefikProvider(cfg);
@@ -77,7 +77,7 @@ class App {
   }
 
   /**
-   * In production, serve built UI from config.uiDistPath; reserve /api for API only.
+   * In production, serve built UI from uiDistPath (relative to app root); reserve /api for API only.
    * @private
    */
   _mountProductionUi() {

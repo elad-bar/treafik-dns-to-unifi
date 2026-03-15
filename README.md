@@ -32,22 +32,16 @@ docker run -p 3000:3000 -v ./config:/app/web-api/config traefik-dns-unifi
 
 Open http://localhost:3000 and configure via the UI. The config file is persisted in the mounted `./config` volume.
 
-## Docker Compose example
+## Docker Compose
 
-Configuration is read from `config/config.json`. Mount it so the app can read and persist it. Optionally set `PORT` or `LOG_LEVEL` via env.
+A `docker-compose.yml` at the repo root runs the image from [GitHub Container Registry](https://github.com/elad-bar/treafik-dns-to-unifi/pkgs/container/treafik-dns-to-unifi) (no local build).
 
-```yaml
-services:
-  traefik-dns-unifi:
-    build: .
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./config:/app/web-api/config
-    environment:
-      - NODE_ENV=production
-      # Optional: PORT (default 3000), LOG_LEVEL (default info)
-    restart: unless-stopped
+**Usage:**
+
+```bash
+# From the repo root (uses ghcr.io/elad-bar/treafik-dns-to-unifi:latest by default)
+docker compose up -d
 ```
 
-Ensure the container can reach both the Traefik API and the UDM (e.g. shared network with Traefik). Config is written to the mounted volume when you save from the UI; you can start with an empty `./config/` directory. Do not commit the config file.
+Create a `./config` directory if it doesn’t exist (can be empty). Open http://localhost:3000 and configure via the UI; config is saved in the mounted volume. Ensure the container can reach Traefik and the UDM. Do not commit the config file.
+

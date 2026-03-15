@@ -6,7 +6,6 @@ const { ValidationError } = require("../services/errors");
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 15;
 const DEFAULT_PORT = 3000;
-const DEFAULT_UI_DIST_PATH = path.join(__dirname, "..", "..", "web-ui", "dist");
 const VALID_LOG_LEVELS = ["error", "warn", "info", "debug"];
 const DEFAULT_CONFIG = {
   traefikBaseUrl: "",
@@ -20,7 +19,6 @@ const DEFAULT_CONFIG = {
   logLevel: "info",
   dnsOverrides: {},
   port: DEFAULT_PORT,
-  uiDistPath: DEFAULT_UI_DIST_PATH,
 };
 
 /**
@@ -61,7 +59,6 @@ class ConfigManager extends BaseManager {
       managedDomain: undefined,
       dnsOverrides: {},
       port: DEFAULT_PORT,
-      uiDistPath: DEFAULT_UI_DIST_PATH,
     };
   }
 
@@ -99,7 +96,6 @@ class ConfigManager extends BaseManager {
     }
 
     const port = Number(merged.port) || Number(process.env.PORT) || DEFAULT_PORT;
-    const uiDistPath = (merged.uiDistPath || "").trim() || DEFAULT_UI_DIST_PATH;
 
     this._state = {
       traefikBaseUrl,
@@ -115,7 +111,6 @@ class ConfigManager extends BaseManager {
       managedDomain,
       dnsOverrides,
       port,
-      uiDistPath,
     };
 
     if (this.logger.level !== this._state.logLevel) {
@@ -170,7 +165,6 @@ class ConfigManager extends BaseManager {
       logLevel: configData.logLevel ?? "info",
       dnsOverrides: configData.dnsOverrides || {},
       port: configData.port ?? DEFAULT_PORT,
-      uiDistPath: configData.uiDistPath ?? DEFAULT_UI_DIST_PATH,
     };
   }
 
@@ -193,7 +187,6 @@ class ConfigManager extends BaseManager {
       logLevel: VALID_LOG_LEVELS.includes(dto.logLevel) ? dto.logLevel : "info",
       dnsOverrides: dto.dnsOverrides || {},
       port: dto.port != null ? Number(dto.port) || DEFAULT_PORT : this._state.port,
-      uiDistPath: (dto.uiDistPath || "").trim() || this._state.uiDistPath || DEFAULT_UI_DIST_PATH,
     };
     this.repository.write(normalized);
     this._state = {
@@ -273,7 +266,6 @@ class ConfigManager extends BaseManager {
       logLevel: merged.logLevel,
       dnsOverrides: merged.dnsOverrides,
       port: merged.port ?? DEFAULT_PORT,
-      uiDistPath: merged.uiDistPath ?? DEFAULT_UI_DIST_PATH,
     };
   }
 
