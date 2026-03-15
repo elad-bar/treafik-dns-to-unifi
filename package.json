@@ -1,0 +1,21 @@
+{
+  "name": "traefik-dns-to-unifi",
+  "version": "1.0.0",
+  "description": "Sync Traefik HTTP router hostnames to UniFi UDM DNS A records",
+  "scripts": {
+    "start": "node web-api/server.js",
+    "start:api": "node web-api/server.js",
+    "start:ui": "npm run dev --prefix web-ui",
+    "dev": "concurrently \"npm run start:api\" \"npm run start:ui\"",
+    "install:api": "npm install --prefix web-api",
+    "install:ui": "npm install --prefix web-ui",
+    "install:all": "npm install && npm run install:api && npm run install:ui",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
