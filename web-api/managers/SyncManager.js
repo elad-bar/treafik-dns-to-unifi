@@ -18,7 +18,7 @@ class SyncManager extends BaseManager {
    * @param {import("../services/logger")} logger - Logger.
    */
   constructor(configManager, traefikProvider, udmProvider, logger) {
-    super(logger);
+    super('SyncManager', logger);
     this._configManager = configManager;
     this._traefikProvider = traefikProvider;
     this._udmProvider = udmProvider;

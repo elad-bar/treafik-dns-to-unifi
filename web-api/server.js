@@ -23,13 +23,12 @@ class App {
     /** @type {import("express").Express} */
     this.express = express();
 
-    this._logger = logger.child({ className: "App" });
-    this._configRepository = new ConfigRepository(
-      logger.child({ className: "ConfigRepository" })
-    );
+    this.className = 'App';
+    this._logger = logger.child({ className: this.className });
+    this._configRepository = new ConfigRepository(logger);
     this._configManager = new ConfigManager(
       this._configRepository,
-      logger.child({ className: "ConfigManager" }),
+      logger,
       TraefikProvider,
       UdmProvider
     );
@@ -40,19 +39,13 @@ class App {
       uiDistPath: path.join(__dirname, "..", "web-ui", "dist"),
       isProduction: process.env.NODE_ENV === "production",
     };
-    this._traefikProvider = new TraefikProvider(
-      cfg,
-      logger.child({ className: "TraefikProvider" })
-    );
-    this._udmProvider = new UdmProvider(
-      cfg,
-      logger.child({ className: "UdmProvider" })
-    );
+    this._traefikProvider = new TraefikProvider(cfg, logger);
+    this._udmProvider = new UdmProvider(cfg, logger);
     this._syncManager = new SyncManager(
       this._configManager,
       this._traefikProvider,
       this._udmProvider,
-      logger.child({ className: "SyncManager" })
+      logger
     );
 
     // Level 1: Entry (routes depend only on managers)
@@ -60,12 +53,9 @@ class App {
       this._configManager,
       this._traefikProvider,
       this._udmProvider,
-      logger.child({ className: "ConfigRoutes" })
+      logger
     );
-    this._discoveredRoutes = new DiscoveredRoutes(
-      this._syncManager,
-      logger.child({ className: "DiscoveredRoutes" })
-    );
+    this._discoveredRoutes = new DiscoveredRoutes(this._syncManager, logger);
 
     this._setupMiddleware();
     this._mountRoutes();

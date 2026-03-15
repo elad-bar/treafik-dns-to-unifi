@@ -15,8 +15,9 @@ class DiscoveredRoutes {
     if (!(syncManager instanceof SyncManager)) {
       throw new TypeError("DiscoveredRoutes requires a SyncManager instance");
     }
+    this.className = 'DiscoveredRoutes';
     this.syncManager = syncManager;
-    this.logger = logger;
+    this.logger = logger.child({ className: this.className });
     this.router = express.Router();
     this.registerRoutes();
   }

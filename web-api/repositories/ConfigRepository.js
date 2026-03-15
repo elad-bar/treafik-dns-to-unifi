@@ -13,7 +13,7 @@ class ConfigRepository extends BaseRepository {
    * @param {import("../services/logger")} logger - Logger.
    */
   constructor(logger) {
-    super(logger);
+    super('ConfigRepository', logger);
     this.configPath = path.join(__dirname, "..", "config", "config.json");
   }
 

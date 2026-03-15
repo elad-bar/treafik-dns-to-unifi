@@ -14,7 +14,7 @@ class UdmProvider extends BaseProvider {
    * @param {import("../services/logger")} logger - Logger.
    */
   constructor(config, logger) {
-    super(config, logger);
+    super('UdmProvider', config, logger);
     this.baseUrl = (config?.udmUrl || "").replace(/\/$/, "");
     this.apiKey = config?.udmApiKey;
     this.ready = Boolean(this.baseUrl && this.apiKey);

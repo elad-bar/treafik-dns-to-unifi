@@ -14,7 +14,7 @@ class TraefikProvider extends BaseProvider {
    * @param {import("../services/logger")} logger - Logger.
    */
   constructor(config, logger) {
-    super(config, logger);
+    super('TraefikProvider', config, logger);
     this.apiUrl = config?.traefikApiUrl;
     this.ready = Boolean(this.apiUrl);
   }

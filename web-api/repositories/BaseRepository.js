@@ -6,13 +6,15 @@
  */
 class BaseRepository {
   /**
-   * @param {import("../services/logger")} logger - Logger.
+   * @param {string} name - Class name for logging.
+   * @param {import("../services/logger")} logger - Root logger.
    */
-  constructor(logger) {
+  constructor(name, logger) {
     if (this.constructor === BaseRepository) {
       throw new TypeError("BaseRepository is abstract");
     }
-    this.logger = logger;
+    this.className = name;
+    this.logger = logger.child({ className: this.className });
   }
 }
 

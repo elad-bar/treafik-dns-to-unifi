@@ -6,10 +6,12 @@
  */
 class BaseManager {
   /**
-   * @param {import("../services/logger")} logger - Logger instance (required).
+   * @param {string} name - Class name for logging.
+   * @param {import("../services/logger")} logger - Root logger (required).
    */
-  constructor(logger) {
-    this.logger = logger;
+  constructor(name, logger) {
+    this.className = name;
+    this.logger = logger.child({ className: this.className });
   }
 }
 

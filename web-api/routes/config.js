@@ -17,10 +17,11 @@ class ConfigRoutes {
     if (!(configManager instanceof ConfigManager)) {
       throw new TypeError("ConfigRoutes requires a ConfigManager instance");
     }
+    this.className = 'ConfigRoutes';
     this.configManager = configManager;
     this._traefikProvider = traefikProvider;
     this._udmProvider = udmProvider;
-    this.logger = logger;
+    this.logger = logger.child({ className: this.className });
     this.router = express.Router();
     this.registerRoutes();
   }

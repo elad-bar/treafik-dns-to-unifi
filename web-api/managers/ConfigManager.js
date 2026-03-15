@@ -33,7 +33,7 @@ class ConfigManager extends BaseManager {
    * @param {typeof import("../providers/UdmProvider")} UdmProvider - UDM provider class (for validation).
    */
   constructor(configRepository, logger, TraefikProvider, UdmProvider) {
-    super(logger);
+    super('ConfigManager', logger);
     this.repository = configRepository;
     this.TraefikProvider = TraefikProvider;
     this.UdmProvider = UdmProvider;

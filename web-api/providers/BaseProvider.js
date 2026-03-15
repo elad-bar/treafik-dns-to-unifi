@@ -13,14 +13,16 @@ const DEFAULT_TIMEOUT_MS = 15000;
  */
 class BaseProvider {
   /**
+   * @param {string} name - Class name for logging.
    * @param {object} config - Config with timeout, insecureTls.
-   * @param {import("../services/logger")} logger - Logger.
+   * @param {import("../services/logger")} logger - Root logger.
    */
-  constructor(config, logger) {
+  constructor(name, config, logger) {
     if (this.constructor === BaseProvider) {
       throw new TypeError("BaseProvider is abstract");
     }
-    this.logger = logger;
+    this.className = name;
+    this.logger = logger.child({ className: this.className });
     this.config = config;
     this.timeout = this.config.timeout ?? DEFAULT_TIMEOUT_MS;
     const insecureTls = this.config.insecureTls === true;
