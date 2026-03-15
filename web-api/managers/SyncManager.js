@@ -27,7 +27,8 @@ class SyncManager extends BaseManager {
   /**
    * Get list of hostnames (desired set) with IP, override flag, and UDM registration status.
    * When UDM is not configured, registeredInUdm is null (UI can show "Unknown").
-   * @returns {Promise<Array<{hostname: string, ip: string, isOverride: boolean, registeredInUdm: boolean|null}>>}
+   * When record exists in UDM, enabledInUdm indicates if it is enabled (orange when false).
+   * @returns {Promise<Array<{hostname: string, ip: string, isOverride: boolean, registeredInUdm: boolean|null, enabledInUdm?: boolean}>>}
    */
   async getList() {
     try {
@@ -40,10 +41,12 @@ class SyncManager extends BaseManager {
     if (!this._traefikProvider.ready) {
       throw new ValidationError("Traefik is not configured. Set traefikBaseUrl in config.");
     }
-    let udmSet = new Set();
+    let udmByLower = new Map();
     if (this._udmProvider.ready) {
       const udmRecords = await this._udmProvider.listDnsRecords().catch(() => []);
-      udmSet = new Set(udmRecords.map((r) => r.name.toLowerCase()));
+      for (const r of udmRecords) {
+        udmByLower.set(r.name.toLowerCase(), { enabled: r.enabled });
+      }
     }
     const hosts = await this._traefikProvider.getHosts().catch(() => []);
     const overrides = config.dnsOverrides || {};
@@ -61,12 +64,18 @@ class SyncManager extends BaseManager {
     for (const hostname of hostSet) {
       const overrideIp = overrideByLower[hostname];
       const ip = overrideIp != null ? overrideIp : targetIp;
-      list.push({
+      const udmRecord = udmKnown ? udmByLower.get(hostname) : null;
+      const registeredInUdm = udmKnown ? !!udmRecord : null;
+      const item = {
         hostname,
         ip,
         isOverride: overrideIp != null,
-        registeredInUdm: udmKnown ? udmSet.has(hostname) : null,
-      });
+        registeredInUdm,
+      };
+      if (udmRecord != null) {
+        item.enabledInUdm = udmRecord.enabled;
+      }
+      list.push(item);
     }
     list.sort((a, b) => a.hostname.localeCompare(b.hostname));
     this.logger.debug("getList: %d entries", list.length);

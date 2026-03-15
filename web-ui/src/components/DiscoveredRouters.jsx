@@ -28,13 +28,23 @@ import { setSectionError } from "../store/slices/uiSlice";
 import { putOverridesConfig } from "../store/slices/configSlice";
 import { fetchDiscovered, syncDiscovered } from "../store/slices/discoveredSlice";
 
-function UdmIndicator({ registeredInUdm }) {
+function UdmIndicator({ registeredInUdm, enabledInUdm }) {
   const color =
-    registeredInUdm === true
-      ? "success.main"
-      : registeredInUdm === false
-        ? "error.main"
-        : "grey.500";
+    registeredInUdm === true && enabledInUdm === false
+      ? "warning.main"
+      : registeredInUdm === true
+        ? "success.main"
+        : registeredInUdm === false
+          ? "error.main"
+          : "grey.500";
+  const ariaLabel =
+    registeredInUdm === true && enabledInUdm === false
+      ? "In UDM but disabled"
+      : registeredInUdm === true
+        ? "In UDM"
+        : registeredInUdm === false
+          ? "Not in UDM"
+          : "Unknown";
   return (
     <Box
       component="span"
@@ -47,7 +57,7 @@ function UdmIndicator({ registeredInUdm }) {
         mr: 1,
         verticalAlign: "middle",
       }}
-      aria-label={registeredInUdm === true ? "In UDM" : registeredInUdm === false ? "Not in UDM" : "Unknown"}
+      aria-label={ariaLabel}
     />
   );
 }
@@ -86,6 +96,7 @@ export default function DiscoveredRouters() {
       ip: currentOverrides[hostname] || targetIp,
       ipDisplay: currentOverrides[hostname] || targetIp,
       registeredInUdm: list.length && list[0].registeredInUdm === null ? null : false,
+      enabledInUdm: undefined,
     })),
   ].sort((a, b) => a.hostname.localeCompare(b.hostname));
 
@@ -189,7 +200,10 @@ export default function DiscoveredRouters() {
                   {rows.map((row) => (
                     <TableRow key={row.hostname}>
                       <TableCell>
-                        <UdmIndicator registeredInUdm={row.registeredInUdm} />
+                        <UdmIndicator
+                          registeredInUdm={row.registeredInUdm}
+                          enabledInUdm={row.enabledInUdm}
+                        />
                         {row.hostname}
                       </TableCell>
                       <TableCell>{row.ipDisplay}</TableCell>
