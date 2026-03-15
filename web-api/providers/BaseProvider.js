@@ -47,7 +47,7 @@ class BaseProvider {
    */
   _request(method, url, options = {}) {
     const start = Date.now();
-    this.logger.debug("HTTP request", { method, url });
+    this.logger.debug(`HTTP request: ${method.toUpperCase()} ${url}`);
     const opts = {
       method,
       url,
@@ -59,12 +59,11 @@ class BaseProvider {
       .request(opts)
       .then((res) => {
         const durationMs = Date.now() - start;
-        this.logger.debug("HTTP response", {
-          method,
-          url,
-          status: res.status,
-          durationMs,
-        });
+        const body = !!res.data ? JSON.stringify(res.data) : "";
+
+        this.logger.debug(
+          `HTTP response: ${res.status} ${url} (${durationMs}ms) — response body: ${body}`
+        );
         return res;
       })
       .catch((err) => {

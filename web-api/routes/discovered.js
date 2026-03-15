@@ -68,10 +68,10 @@ class DiscoveredRoutes {
   }
 
   /**
-   * POST /sync — run Traefik→UDM sync (on demand, regardless of interval).
+   * POST /sync — run Traefik→UDM sync (on demand). Always applies changes; ignores config dryRun.
    */
   async postSync(req, res) {
-    await this.syncManager.syncWithRetry();
+    await this.syncManager.syncWithRetry({ forceApply: true });
     res.status(200).json({ ok: true });
   }
 

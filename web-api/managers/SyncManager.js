@@ -22,6 +22,20 @@ class SyncManager extends BaseManager {
     this._configManager = configManager;
     this._traefikProvider = traefikProvider;
     this._udmProvider = udmProvider;
+    this._modes = {
+      dryRun: {
+        update: this._logWouldUpdate.bind(this),
+        create: this._logWouldCreate.bind(this),
+        delete: this._logWouldDelete.bind(this),
+        actionLabels: { create: "would create", update: "would update", delete: "would delete" },
+      },
+      execute: {
+        update: this._performUpdate.bind(this),
+        create: this._performCreate.bind(this),
+        delete: this._performDelete.bind(this),
+        actionLabels: { create: "created", update: "updated", delete: "deleted" },
+      },
+    };
   }
 
   /**
@@ -92,13 +106,68 @@ class SyncManager extends BaseManager {
     return h === d || h.endsWith("." + d);
   }
 
+  _logWouldUpdate(record, entry) {
+    this.logger.info(
+      `Would update DNS: ${record.name} -> ${entry.ip}${record.enabled === false ? " (enable)" : ""}`
+    );
+    return Promise.resolve(1);
+  }
+
+  _logWouldCreate(entry) {
+    this.logger.info(`Would create DNS: ${entry.hostname} -> ${entry.ip}`);
+    return Promise.resolve(1);
+  }
+
+  _logWouldDelete(record) {
+    this.logger.info(`Would delete DNS: ${record.name}`);
+    return Promise.resolve(1);
+  }
+
+  async _performUpdate(record, entry) {
+    try {
+      await this._udmProvider.updateDnsRecord(record.id, {
+        enabled: true,
+        value: entry.ip,
+      });
+      this.logger.info(`Updated DNS: ${record.name} -> ${entry.ip}`);
+      return 1;
+    } catch (e) {
+      this.logger.error(`DNS update failed: ${record.name} — ${formatErr(e)}`);
+      return 0;
+    }
+  }
+
+  async _performCreate(entry) {
+    try {
+      await this._udmProvider.createDnsRecord(entry.hostname, entry.ip);
+      this.logger.info(`Created DNS: ${entry.hostname} -> ${entry.ip}`);
+      return 1;
+    } catch (e) {
+      this.logger.error(`DNS create failed: ${entry.hostname} — ${formatErr(e)}`);
+      return 0;
+    }
+  }
+
+  async _performDelete(record) {
+    try {
+      await this._udmProvider.deleteDnsRecord(record.id);
+      this.logger.info(`Deleted DNS: ${record.name}`);
+      return 1;
+    } catch (e) {
+      this.logger.error(`DNS delete failed: ${record.name} — ${formatErr(e)}`);
+      return 0;
+    }
+  }
+
   /**
    * Run one sync: fetch hosts from Traefik, compute desired DNS set, create/delete UDM records.
+   * @param {{ forceApply?: boolean }} [options] - forceApply: true = ignore config dryRun and write to UDM (e.g. manual Sync button).
    * @returns {Promise<void>}
    */
-  async sync() {
+  async sync(options = {}) {
     this._configManager.getConfig({ exitOnError: false });
     const config = this._configManager.getCurrentConfig();
+    const dryRun = options.forceApply ? false : config.dryRun;
     if (!this._traefikProvider.ready) {
       throw new ValidationError("Traefik is not configured. Set traefikBaseUrl in config.");
     }
@@ -141,53 +210,21 @@ class SyncManager extends BaseManager {
       (entry) => !existingSet.has(entry.hostname.toLowerCase())
     );
 
+    const mode = dryRun ? this._modes.dryRun : this._modes.execute;
+    const labels = mode.actionLabels;
+
     let updated = 0;
     for (const hostnameLower of desiredSet) {
       const record = existingByLower.get(hostnameLower);
       const entry = desired.get(hostnameLower);
       if (!record || !entry) continue;
-      const needsUpdate =
-        record.enabled === false || record.value !== entry.ip;
-      if (!needsUpdate) continue;
-      if (config.dryRun) {
-        this.logger.info(
-          `Would update DNS: ${record.name} -> ${entry.ip}${record.enabled === false ? " (enable)" : ""}`
-        );
-        updated++;
-      } else {
-        try {
-          await this._udmProvider.updateDnsRecord(record.id, {
-            enabled: true,
-            value: entry.ip,
-          });
-          updated++;
-          this.logger.info(`Updated DNS: ${record.name} -> ${entry.ip}`);
-        } catch (e) {
-          this.logger.error(
-            `DNS update failed: ${record.name} — ${formatErr(e)}`
-          );
-        }
-      }
+      if (record.enabled !== false && record.value === entry.ip) continue;
+      updated += await mode.update(record, entry);
     }
 
     let created = 0;
     for (const entry of toCreate) {
-      if (config.dryRun) {
-        this.logger.info(
-          `Would create DNS: ${entry.hostname} -> ${entry.ip}`
-        );
-        created++;
-      } else {
-        try {
-          await this._udmProvider.createDnsRecord(entry.hostname, entry.ip);
-          created++;
-          this.logger.info(`Created DNS: ${entry.hostname} -> ${entry.ip}`);
-        } catch (e) {
-          this.logger.error(
-            `DNS create failed: ${entry.hostname} — ${formatErr(e)}`
-          );
-        }
-      }
+      created += await mode.create(entry);
     }
 
     let deleted = 0;
@@ -198,44 +235,29 @@ class SyncManager extends BaseManager {
           !desiredSet.has(r.name)
       );
       for (const record of toDelete) {
-        if (config.dryRun) {
-          this.logger.info(`Would delete DNS: ${record.name}`);
-          deleted++;
-        } else {
-          try {
-            await this._udmProvider.deleteDnsRecord(record.id);
-            deleted++;
-            this.logger.info(`Deleted DNS: ${record.name}`);
-          } catch (e) {
-            this.logger.error(
-              `DNS delete failed: ${record.name} — ${formatErr(e)}`
-            );
-          }
-        }
+        deleted += await mode.delete(record);
       }
     }
 
     const already = desired.size - toCreate.length;
-    const actionCreate = config.dryRun ? "would create" : "created";
-    const actionUpdate = config.dryRun ? "would update" : "updated";
     const overrideCount = Object.keys(overrides).length;
-    let msg = `Sync done: ${hostsFromTraefik.length} from Traefik${overrideCount ? `, ${overrideCount} overrides` : ""}, ${desired.size} desired, ${already} already in UDM, ${created} ${actionCreate}, ${updated} ${actionUpdate}.`;
+    let msg = `Sync done: ${hostsFromTraefik.length} from Traefik${overrideCount ? `, ${overrideCount} overrides` : ""}, ${desired.size} desired, ${already} already in UDM, ${created} ${labels.create}, ${updated} ${labels.update}.`;
     if (config.managedDomain !== undefined) {
-      const actionDelete = config.dryRun ? "would delete" : "deleted";
-      msg += ` Cleanup: ${deleted} ${actionDelete}.`;
+      msg += ` Cleanup: ${deleted} ${labels.delete}.`;
     }
     this.logger.info(msg);
   }
 
   /**
    * Run sync with retries.
+   * @param {{ forceApply?: boolean }} [options] - forceApply: true for manual Sync button (ignore config dryRun).
    * @returns {Promise<void>}
    */
-  async syncWithRetry() {
+  async syncWithRetry(options = {}) {
     let lastErr;
     for (let attempt = 1; attempt <= SYNC_MAX_RETRIES; attempt++) {
       try {
-        await this.sync();
+        await this.sync(options);
         return;
       } catch (err) {
         lastErr = err;
