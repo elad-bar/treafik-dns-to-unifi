@@ -70,7 +70,7 @@ class UdmProvider extends BaseProvider {
             (!r.type && !r.record_type)
         )
         .map((r) => {
-          const name = r.name != null ? String(r.name).toLowerCase() : "";
+          const name = r.hostname != null ? String(r.hostname).toLowerCase() : "";
           const id = r._id || r.id;
           if (!name || !id) return null;
           return { id: String(id), name };
@@ -98,7 +98,7 @@ class UdmProvider extends BaseProvider {
     try {
       await this._post(
         `${this.baseUrl}${DNS_RECORDS_PATH}`,
-        { name: hostname, record_type: "A", value: ip },
+        { hostname, record_type: "A", value: ip },
         this._getUdmOptions()
       );
     } catch (err) {
